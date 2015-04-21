@@ -1,0 +1,189 @@
+---
+- hosts: ec2
+  vars:
+    python_version: 3.4.3
+    user: ubuntu
+    home: /home/{{ user }}
+    swap_file_path: /swapfile
+    swap_file_size_mb: 1024
+    profile: nbserver
+    ipython_port: 8888
+    notebook_dir: "{{ home }}/notebook"
+  remote_user: ubuntu
+
+  tasks:
+    - name: apt-get updates a server
+      apt: update_cache=yes
+      sudo: yes
+      tags: initial_setup
+
+    - name: apt-get upgrade a server
+      apt: upgrade=full
+      sudo: yes
+      tags: initial_setup
+
+    - name: create swapfile for installing scipy
+      command: dd if=/dev/zero of={{ swap_file_path }} bs=1M count={{ swap_file_size_mb }}
+      sudo: yes
+      register: swapfile
+      when: ansible_swaptotal_mb < 1
+      tags: swapon
+
+    - name: mkswap
+      command: mkswap {{ swap_file_path }}
+      sudo: yes
+      when: ansible_swaptotal_mb < 1
+      tags: swapon
+
+    - name: swapon
+      command: swapon {{ swap_file_path }}
+      sudo: yes
+      when: ansible_swaptotal_mb < 1
+      tags: swapon
+
+    - name: apt-get install basic pkg
+      apt: pkg={{ item }} state=installed
+      sudo: yes
+      with_items:
+      - git
+      - gcc
+      - build-essential
+      - zlib1g-dev
+      - libbz2-dev
+      - libssl-dev
+      - libreadline-dev
+      - libsqlite3-dev
+      tags: pyenv
+
+    - name: check pyenv is installed
+      command: test -x {{ home }}/.pyenv/bin/pyenv
+      register: pyenv_existence
+      ignore_errors: yes
+      tags: pyenv
+
+    - name: git clone pyenv
+      git: repo=https://github.com/yyuu/pyenv.git dest={{ home }}/.pyenv/
+      when: pyenv_existence|failed
+      ignore_errors: yes
+      tags: pyenv
+
+    - name: check .bash_profile is exist
+      stat: path={{ home }}/.bash_profile
+      register: bash_profile_existence
+      tags: pyenv
+
+    - name: set .bash_profile config by copying from file
+      copy: src=../files/bash_profile dest={{ home }}/.bash_profile
+      sudo: no
+      when: bash_profile_existence.stat.md5 is not defined
+      ignore_errors: yes
+      tags: pyenv
+
+    - name: install pyenv's python and rehash
+      shell: . {{ home }}/.bash_profile &&  pyenv install -s {{ python_version }} && pyenv rehash && pyenv global {{ python_version }}
+      when: pyenv_existence|failed
+      tags: pyenv
+
+    - name: pip install global python pkgs
+      pip: name={{ item }} state=latest executable={{ home }}/.pyenv/shims/pip
+      with_items:
+      - pip
+      - virtualenv
+      tags: global_python
+
+    - name: list installed python yversion
+      shell: . {{ home }}/.bash_profile && pyenv versions
+      sudo: no
+      register: py_versions
+      tags: global_python
+
+    - debug: var=py_versions
+      tags: global_python
+
+    - name: apt-get install pkg for python ml libraries
+      apt: pkg={{ item }} state=installed
+      sudo: yes
+      with_items:
+      - pkg-config
+      - gfortran
+      - libopenblas-dev
+      - libblas-dev
+      - liblapack-dev
+      - libpng-dev
+      - libjpeg8-dev
+      - libfreetype6
+      - libfreetype6-dev
+      tags: global_python
+
+    # pip install scipy at first because scipy needs a lot of memory size
+    - name: create virtualenv 'venv' and pip install scipy in 'venv'
+      pip: name={{ item }} state=latest virtualenv={{ home }}/venv virtualenv_command={{ home }}/.pyenv/shims/virtualenv virtualenv_site_packages=no
+      sudo: no
+      with_items:
+      - scipy  
+      tags: venv_python
+
+    - name: pip install python ml libraries in 'venv'
+      pip: name={{ item }} state=latest virtualenv={{ home }}/venv virtualenv_command={{ home }}/.pyenv/shims/virtualenv virtualenv_site_packages=no
+      sudo: no
+      with_items:
+      - ipython
+      - numpy
+      - scikit-learn
+      - cython
+      - tornado
+      - pytz
+      - six
+      - pyparsing
+      - matplotlib
+      - pyzmq
+      - jinja2
+      - jsonschema
+      - pandas
+      - terminado
+      tags: venv_python
+
+    - name: checking notebooks port
+      wait_for: host={{ inventory_hostname }} port={{ ipython_port }} state=stopped timeout=1
+      tags: ipython
+
+    - name: check ipython_profile is exist
+      stat: path={{ home }}/.ipython/profile_{{ profile }}
+      register: ipython_profile_existence
+      tags: ipython
+
+    - name: creating ipython profile
+      shell: . {{ home }}/.bash_profile && . {{ home }}/venv/bin/activate && ipython profile create {{ profile }}
+      when: ipython_profile_existence.stat.md5 is not defined
+      tags: ipython
+
+    - name: creating ipython directory
+      file: path={{ notebook_dir }} state=directory owner={{ user }} group={{ user }} mode=0755
+      tags: ipython
+
+    - name: updating ipython configuration
+      lineinfile: >
+        dest="{{ home }}/.ipython/profile_{{ profile }}/ipython_notebook_config.py"
+        state=present
+        backrefs=yes
+        regexp="{{ item.regexp }}"
+        line="{{ item.line }}"
+      with_items:
+      - regexp: '^#?\s*c\.NotebookApp\.ip\s*=.*$'
+        line: c.NotebookApp.ip = '*'
+      - regexp: '^#?\s*c\.NotebookApp\.open_browser\s*=.*$'
+        line: c.NotebookApp.open_browser = False
+      - regexp: '^#?\s*c\.NotebookApp\.port\s*=.*$'
+        line: c.NotebookApp.port = {{ ipython_port }}
+      tags: ipython
+
+    - name: swapoff
+      command: swapoff {{ swap_file_path }}
+      sudo: yes
+      when: ansible_swaptotal_mb >= 1
+      tags: swapoff 
+
+    - name: info
+      pause: prompt="Start IPython Notebook by executing 'ipython notebook --profile={{ profile }}', press ENTER to continue"
+      tags: info
+
