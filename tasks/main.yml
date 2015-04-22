@@ -113,6 +113,8 @@
       - libjpeg8-dev
       - libfreetype6
       - libfreetype6-dev
+      - libsm6
+      - libxrender-dev
       tags: global_python
 
     # pip install scipy at first because scipy needs a lot of memory size
