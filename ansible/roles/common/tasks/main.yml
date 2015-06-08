@@ -9,8 +9,8 @@
 - name: apt-get updates a server
   apt: update_cache=yes
 
+- name: apt-get install aptitude
+  apt: pkg=aptitude state=installed
+
 - name: apt-get upgrade a server
   apt: upgrade=full
-
-- name: apt-get install basic pkg
-  apt: pkg=aptitude state=installed
