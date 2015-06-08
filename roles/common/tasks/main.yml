@@ -1,0 +1,7 @@
+---
+
+- name: create ubuntu group
+  group: name=ubuntu state=present gid=1000
+
+- name: create ubuntu user
+  user: name=ubuntu comment=Ubuntu shell=/bin/bash groups=ubuntu uid=1000 home=/home/ubuntu

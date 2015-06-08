@@ -1,11 +1,11 @@
 ---
 
-- hosts: ec2
+- hosts: localhost
   remote_user: root
   roles:
   - common
 
-- hosts: ec2
+- hosts: localhost
   remote_user: ubuntu
   roles:
   - ipython
