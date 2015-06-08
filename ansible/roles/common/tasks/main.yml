@@ -5,3 +5,12 @@
 
 - name: create ubuntu user
   user: name=ubuntu comment=Ubuntu shell=/bin/bash groups=ubuntu uid=1000 home=/home/ubuntu
+
+- name: apt-get updates a server
+  apt: update_cache=yes
+
+- name: apt-get upgrade a server
+  apt: upgrade=full
+
+- name: apt-get install basic pkg
+  apt: pkg=aptitude state=installed
