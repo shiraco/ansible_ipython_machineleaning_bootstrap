@@ -37,7 +37,8 @@ Host ec2_bootstrap
 1. run playbook on local client
 
 ```
-$ ansible-playbook tasks/main.yml
+$ cd ansible/
+$ ansible-playbook site.yml
 ```
 
 ### Run ipython notebook server on target server(EC2)
@@ -84,4 +85,3 @@ ec2_bootstrap               : ok=24   changed=17   unreachable=0    failed=0
 ## Lisence
 
 This software is released under the MIT License, see LICENSE.
-
