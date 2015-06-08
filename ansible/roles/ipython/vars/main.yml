@@ -1,0 +1,10 @@
+---
+
+python_version: 3.4.3
+user: ubuntu
+home: /home/{{ user }}
+swap_file_path: /swapfile
+swap_file_size_mb: 1024
+profile: nbserver
+ipython_port: 8888
+notebook_dir: "{{ home }}/notebook"
