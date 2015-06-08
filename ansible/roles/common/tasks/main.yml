@@ -4,7 +4,7 @@
   group: name=ubuntu state=present gid=1000
 
 - name: create ubuntu user
-  user: name=ubuntu comment=Ubuntu shell=/bin/bash groups=ubuntu uid=1000 home=/home/ubuntu
+  user: name=ubuntu comment=Ubuntu shell=/bin/bash groups=ubuntu uid=1000 home=/home/ubuntu createhome=yes move_home=yes
 
 - name: apt-get updates a server
   apt: update_cache=yes
